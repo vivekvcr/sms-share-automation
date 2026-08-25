@@ -1,0 +1,50 @@
+# Compiled class files
+target/
+*.class
+
+# Maven local install used on this machine
+.tools/
+
+# Generated classpath
+cp.txt
+
+# Log files
+logs/
+*.log
+scheduler.log
+nohup.out
+
+# IDE / editor files
+.idea/
+.vscode/
+.claude/
+*.iml
+.classpath
+.project
+.settings/
+bin/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+__MACOSX/
+._*
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Google Service Account Keys (NEVER commit these!)
+service-account-key.json
+*-key.json
+credentials.json
+tokens/
+
+# Node.js
+node_modules/
+package-lock.json
+.env
+.env.*
+!.env.example
