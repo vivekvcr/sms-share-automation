@@ -2,6 +2,29 @@
 
 Simple automation for testing SMS Share forms with Slack notifications.
 
+## In Simple Terms
+
+This project is an **automated health-check for the SMS Share feature** on WIC and related websites. For each configured site, the script opens the page in Chrome (headless by default), walks through the SMS share form like a user would, and reports whether it worked.
+
+For each website, the script:
+
+1. Opens the page in Chrome
+2. Clicks the **Share** button
+3. Opens the **SMS** tab
+4. Selects **India** as the country code
+5. Enters a test mobile number
+6. Checks the **terms & conditions** box
+7. Clicks **Share**
+8. Waits for the success message: **"SMS sent successfully!"**
+
+If all steps succeed, the site is marked **PASS**. If anything fails (element not found, timeout, CAPTCHA error), it is marked **FAIL**.
+
+After all sites are tested, a summary (total, passed, failed, success rate) is sent to **Slack** if `SLACK_WEBHOOK_URL` is set in `.env`.
+
+Each site uses its own XPath selectors in `SMSShareTest.java`, because the Share button and form markup differ per site. The script also checks for **reCAPTCHA** presence and errors during the flow.
+
+**Purpose:** A smoke/regression test to confirm the SMS Share flow still works across state WIC sites after updates — without manual testing on every site every day.
+
 ## Features
 
 - ✅ Tests SMS Share forms across multiple URLs

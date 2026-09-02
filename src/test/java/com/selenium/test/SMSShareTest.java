@@ -70,7 +70,8 @@ public class SMSShareTest {
         "https://newjersey.wicresources.org/",
         "https://connecticut.wicresources.org/",
         "https://nebraska.wicresources.org/",
-        "https://chickasawnation.ebtresources.org/summer-ebt-approved-food-list/"
+        "https://chickasawnation.ebtresources.org/summer-ebt-approved-food-list/",
+        "https://newjerseytest.wicresources.org/"
     };
     private static final String MOBILE_NUMBER = "7428730894";
     // Above is just a test number, not the actual number for the test.
@@ -262,6 +263,18 @@ public class SMSShareTest {
             "//*[@id='submit-btn-sms']"                                                                     // Share button
         );
         XPATH_MAP.put("https://newjersey.wicresources.org/", newJerseyConfig);
+
+        // New Jersey Test - Specific XPaths
+        XPathConfig newJerseyTestConfig = new XPathConfig(
+            "//div[@id='top']/div[2]/div/span",                                                              // Share icon
+            "//a[normalize-space()='SMS']",                                                                  // SMS tab
+            "//div[@id='wpcf7-f51622-o1']/form/div/p/label/span/div/div/div",                               // Country Code dropdown
+            "//div[@id='wpcf7-f51622-o1']/form/div/p/label/span/div/div/ul/li[101]/span",                   // India option
+            "//input[@name='yourphone']",                                                                   // Mobile Number input
+            "//input[@name='checkbox-403[]']/parent::label/span",                                           // Terms checkbox label
+            "//*[@id='submit-btn-sms']"                                                                      // Share button
+        );
+        XPATH_MAP.put("https://newjerseytest.wicresources.org/", newJerseyTestConfig);
         
         // Connecticut - Specific XPaths
         XPathConfig connecticutConfig = new XPathConfig(
@@ -1007,6 +1020,8 @@ public class SMSShareTest {
                 urlsToTest = new String[]{"https://indiana.wicresources.org/breastfeeding/"};
             } else if (args[0].equalsIgnoreCase("newjersey")) {
                 urlsToTest = new String[]{"https://newjersey.wicresources.org/"};
+            } else if (args[0].equalsIgnoreCase("newjerseytest")) {
+                urlsToTest = new String[]{"https://newjerseytest.wicresources.org/"};
             } else if (args[0].equalsIgnoreCase("connecticut")) {
                 urlsToTest = new String[]{"https://connecticut.wicresources.org/"};
             } else if (args[0].equalsIgnoreCase("livewell")) {
@@ -1020,7 +1035,7 @@ public class SMSShareTest {
             } else if (args[0].startsWith("http")) {
                 urlsToTest = new String[]{args[0]};
             } else {
-                System.out.println("Invalid argument. Use 'oklahoma', 'westvirginia', 'oregon', 'delaware', 'indiana', 'indiana-breastfeeding', 'infographic', 'kansas', 'nebraska', 'chickasaw', 'newjersey', 'connecticut', 'livewell', or a full URL.");
+                System.out.println("Invalid argument. Use 'oklahoma', 'westvirginia', 'oregon', 'delaware', 'indiana', 'indiana-breastfeeding', 'infographic', 'kansas', 'nebraska', 'chickasaw', 'newjersey', 'newjerseytest', 'connecticut', 'livewell', or a full URL.");
                 return;
             }
         } else {
