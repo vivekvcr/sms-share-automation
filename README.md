@@ -1,176 +1,120 @@
 # SMS Share Automation
 
-Simple automation for testing SMS Share forms with Slack notifications.
+Selenium suite that exercises the SMS Share form on 12 WIC/EBT sites and posts a
+pass/fail report to Slack. Windows-only.
 
-## In Simple Terms
+Each site runs the same nine steps — open page, share icon, SMS tab, country code
+(India), phone number, terms checkbox, submit — then waits for the site's
+"SMS sent successfully!" confirmation.
 
-This project is an **automated health-check for the SMS Share feature** on WIC and related websites. For each configured site, the script opens the page in Chrome (headless by default), walks through the SMS share form like a user would, and reports whether it worked.
+## Running it
 
-For each website, the script:
+From any folder (`run.cmd` sets its own working directory):
 
-1. Opens the page in Chrome
-2. Clicks the **Share** button
-3. Opens the **SMS** tab
-4. Selects **India** as the country code
-5. Enters a test mobile number
-6. Checks the **terms & conditions** box
-7. Clicks **Share**
-8. Waits for the success message: **"SMS sent successfully!"**
-
-If all steps succeed, the site is marked **PASS**. If anything fails (element not found, timeout, CAPTCHA error), it is marked **FAIL**.
-
-After all sites are tested, a summary (total, passed, failed, success rate) is sent to **Slack** if `SLACK_WEBHOOK_URL` is set in `.env`.
-
-Each site uses its own XPath selectors in `SMSShareTest.java`, because the Share button and form markup differ per site. The script also checks for **reCAPTCHA** presence and errors during the flow.
-
-**Purpose:** A smoke/regression test to confirm the SMS Share flow still works across state WIC sites after updates — without manual testing on every site every day.
-
-## Features
-
-- ✅ Tests SMS Share forms across multiple URLs
-- ✅ Sends results to Slack
-- ✅ Runs automatically via cron/Launchd
-- ✅ Headless mode (runs in background)
-
-## Quick Start
-
-### 1. Configure Slack (optional)
-
-Put your Slack webhook in `.env` (file is gitignored):
-```bash
-SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-SLACK_USERNAME="SMS Share Test Bot"
+```powershell
+& "<path to project folder>\run.cmd"
 ```
 
-### 2. Run tests and send report to Slack (one command)
+One site only — note the **quotes around the argument**. PowerShell splits an
+unquoted `-Dexec.args=...` and Maven then rejects `.args=oklahoma` as a lifecycle
+phase:
 
-**Windows (CMD)** — from this project folder:
-
-```cmd
-cd "c:\Users\vivek.rana\Downloads\Share-functionalty 4\Share-functionalty 2"
-run
+```powershell
+& "...\run.cmd" "-Dexec.args=oklahoma"
 ```
 
-`run` uses `run.cmd`. It loads `.env` and runs all SMS Share tests. Slack is sent if `SLACK_WEBHOOK_URL` is set.
+Valid site arguments: `livewell`, `westvirginia`, `oklahoma`, `oregon`, `delaware`,
+`indiana`, `indiana-breastfeeding` (alias `infographic`), `kansas`, `newjersey`,
+`connecticut`, `nebraska`, `chickasaw`, or any full URL.
 
-Optional:
+`run.cmd` loads `.env` and uses the bundled Maven in `.tools\`, so Maven does not
+need to be on PATH.
 
-```cmd
-run -Dexec.args=nebraska
-npm run run-script
+## Scheduling it
+
+**No scheduler is registered.** The suite is manual-only; nothing runs on its own.
+
+`run_scheduled.cmd` exists for unattended runs — it wraps `run.cmd` and captures all
+output to `logs\scheduled_<timestamp>.log` — but it has no notion of time and runs
+immediately whenever invoked. Nothing in this repo schedules anything; that job
+belongs to Windows Task Scheduler.
+
+To set up a daily run at 19:00, from the project folder:
+
+```powershell
+Register-ScheduledTask -TaskName 'WIC SMS Share Daily Test' `
+  -Action  (New-ScheduledTaskAction -Execute "cmd.exe" `
+              -Argument '/c "run_scheduled.cmd"' -WorkingDirectory $PWD) `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At "19:00") `
+  -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable `
+              -MultipleInstances IgnoreNew `
+              -ExecutionTimeLimit (New-TimeSpan -Hours 2))
 ```
 
-`npm start` starts the daily scheduler only. Use `run` for an immediate test.
+Then manage it with:
 
-**macOS / Linux:**
-
-```bash
-./run.sh
+```powershell
+Start-ScheduledTask      -TaskName 'WIC SMS Share Daily Test'   # run now (silent; check the log)
+Get-ScheduledTaskInfo    -TaskName 'WIC SMS Share Daily Test'   # last result / next run
+Disable-ScheduledTask    -TaskName 'WIC SMS Share Daily Test'   # pause it
+Unregister-ScheduledTask -TaskName 'WIC SMS Share Daily Test' -Confirm:$false
 ```
 
-This runs all tests and sends the summary to Slack if `SLACK_WEBHOOK_URL` is set in `.env`.
+`LastTaskResult 267009` (`0x41301`) means "currently running", not an error. While a
+log is being written its reported file size stays stale — read the contents, not the
+size.
 
-### 3. Schedule Daily Runs
+The task stores an **absolute** working directory, so moving or renaming the project
+folder breaks the scheduled run silently. Re-register it after any move.
 
-**Option A: Node.js Scheduler (Recommended - Cross-platform)**
-```bash
-# Install Node.js dependencies
-npm install
+`LastTaskResult 267009` (`0x41301`) means "currently running", not an error. While a
+log is being written its reported file size stays stale — read the contents, not the
+size.
 
-# Run the scheduler (runs daily at 4:00 PM)
-npm start
+**Limitation:** the task runs only while the user is logged on. Running it on a
+locked or signed-out machine requires storing the account password in the task,
+which must be done by hand in `taskschd.msc`.
 
-# Or run in background
-nohup npm start > scheduler.log 2>&1 &
-```
+## Configuration
 
-The scheduler will:
-- Run tests daily at 4:00 PM automatically
-- Log all test runs to `logs/` directory
-- Continue running until stopped (Ctrl+C)
-
-**Configuration via Environment Variables:**
-```bash
-# Custom schedule (default: 0 16 * * * = 4:00 PM daily)
-export CRON_SCHEDULE="0 16 * * *"
-
-# Custom Slack webhook
-export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-
-# Custom Slack channel and username
-export SLACK_CHANNEL="#test-results"
-export SLACK_USERNAME="Test Bot"
-
-# Timezone (default: system timezone)
-export TZ="America/New_York"
-
-npm start
-```
-
-**Option B: Launchd (macOS)**
-```bash
-# Create Launchd plist
-cat > ~/Library/LaunchAgents/com.sms.share.automation.plist <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.sms.share.automation</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/Hardik-Patel/Desktop/SCRIPT/Share-functionalty/run_daily_automated.sh</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>17</integer>
-        <key>Minute</key>
-        <integer>50</integer>
-    </dict>
-    <key>StandardOutPath</key>
-    <string>/Users/Hardik-Patel/Desktop/SCRIPT/Share-functionalty/logs/launchd_stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/Hardik-Patel/Desktop/SCRIPT/Share-functionalty/logs/launchd_stderr.log</string>
-</dict>
-</plist>
-EOF
-
-# Load it
-launchctl load ~/Library/LaunchAgents/com.sms.share.automation.plist
-```
-
-**Option C: Cron**
-```bash
-crontab -e
-# Add:
-50 17 * * * /bin/bash -c 'cd /Users/Hardik-Patel/Desktop/SCRIPT/Share-functionalty && ./run_daily_automated.sh' >> /Users/Hardik-Patel/Desktop/SCRIPT/Share-functionalty/logs/cron_stdout.log 2>> /Users/Hardik-Patel/Desktop/SCRIPT/Share-functionalty/logs/cron_stderr.log
-```
+`.env` (gitignored) holds the Slack webhook and timezone. Two webhooks are kept
+there — WLIQ and test — and **exactly one must be uncommented**. Slack is skipped
+entirely if no webhook is set.
 
 ## Files
 
-- `scheduler.js` - Node.js cron scheduler (runs daily at 4:00 PM)
-- `package.json` - Node.js dependencies and scripts
-- `run.cmd` - **Windows one command**: `run` — all tests + Slack (uses .env)
-- `run.sh` - **macOS/Linux one command**: run all tests + send report to Slack (uses .env)
-- `run_tests.sh` - Alternative test runner (Slack only, uses java directly)
-- `run_daily_automated.sh` - Wrapper for scheduled runs (with logging)
-- `src/test/java/com/selenium/test/SMSShareTest.java` - Test code
-- `src/main/java/com/selenium/utils/SlackService.java` - Slack integration
+- `src/test/java/com/selenium/test/SMSShareTest.java` — all test logic, plus the
+  per-site XPath map. Each site has its own selectors; these break whenever a site's
+  markup changes, and are the usual cause of a failure.
+- `src/main/java/com/selenium/utils/SlackService.java` — Slack report formatting.
+- `run.cmd` — loads `.env`, runs the suite via the bundled Maven.
+- `run_scheduled.cmd` — Task Scheduler entry point; wraps `run.cmd` with logging.
+- `pom.xml` — Java 11 target, Selenium 4.15, JUnit 5.
+- `.tools/` — vendored Maven 3.9.16.
 
 ## Logs
 
-All logs are saved to `logs/` directory:
-- `test_YYYYMMDD_HHMMSS.log` - Individual test runs
-- `daily_summary.log` - Summary of all runs
-- `cron_stdout.log` / `cron_stderr.log` - Cron output
-- `launchd_stdout.log` / `launchd_stderr.log` - Launchd output
+`logs\scheduled_<timestamp>.log` — one per scheduled run. Manual runs print to the
+console and are not logged.
+
+Note that the suite prints the first 50 characters of the Slack webhook URL to
+stdout, so it lands in these files. They are gitignored, but avoid sharing them raw.
+
+## Diagnosing failures
+
+A failure reports which step it died on. Steps 2–8 failing means a **selector** is
+stale — record the current flow in Selenium IDE, but verify against the live DOM
+before trusting the recorded XPaths, which are often one wrapper level off.
+
+Failing after step 9 is **not** a selector problem: the form submitted and the site
+did not confirm. The wait loop watches for the sites' known rejection messages
+("Monthly SMS limit reached.", "Failed to send SMS", and others) and reports the
+actual text, so check that before touching any XPath.
+
+Note that each full run sends 12 real SMS messages, so repeated runs consume quota.
 
 ## Requirements
 
-- Java 11+
-- Maven
-- Node.js 18+ (for scheduler)
-- Chrome browser
-- Slack webhook URL
-
+- Java 17 (JDK 11+ target)
+- Google Chrome (ChromeDriver is fetched automatically by WebDriverManager)
+- No Maven install needed — bundled in `.tools\`

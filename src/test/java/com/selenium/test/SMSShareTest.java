@@ -70,8 +70,7 @@ public class SMSShareTest {
         "https://newjersey.wicresources.org/",
         "https://connecticut.wicresources.org/",
         "https://nebraska.wicresources.org/",
-        "https://chickasawnation.ebtresources.org/summer-ebt-approved-food-list/",
-        "https://newjerseytest.wicresources.org/"
+        "https://chickasawnation.ebtresources.org/summer-ebt-approved-food-list/"
     };
     private static final String MOBILE_NUMBER = "7428730894";
     // Above is just a test number, not the actual number for the test.
@@ -195,9 +194,9 @@ public class SMSShareTest {
         XPathConfig indianaConfig = new XPathConfig(
             "//div[@type='button']",                                                                      // Share icon
             "//a[normalize-space()='SMS']",                                                               // SMS tab
-            "//div[@id='wpcf7-f74270-o1']/form/div/p/span/div/div/div/div[2]",                            // Country Code dropdown
-            "//div[@id='wpcf7-f74270-o1']/form/div/p/span/div/div/ul/li[101]/span",                      // India option
-            "//*[@id='phone']",                                                                           // Mobile Number input
+            "//div[@id='wpcf7-f74270-o1']/form/div/p/label/span/div/div/div/div[3]",                      // Country Code dropdown
+            "//div[@id='wpcf7-f74270-o1']/form/div/p/label/span/div/div/ul/li[101]/span",                 // India option
+            "//*[@id='wliq-phone-1']",                                                                    // Mobile Number input
             "//input[@name='checkbox-403[]']/parent::label/span",                                         // Terms checkbox label
             "//*[@id='submit-btn-sms']"                                                                   // Share button
         );
@@ -210,9 +209,9 @@ public class SMSShareTest {
             "//button[@data-tab='sms']",                                                                    // SMS tab in feed popup
             "//div[@id='wpcf7-f82303-o2']/form/div/p/span/div/div/div/div[2]",                             // Country Code dropdown
             "//div[@id='wpcf7-f82303-o2']/form/div/p/span/div/div/ul/li[101]/span",                        // India option
-            "//*[@id='phoneinfographic']",                                                                  // Mobile Number input
-            "//span[@id='checkboxinfographic']/span/label/span",                                            // Terms checkbox
-            "//div[@id='wpcf7-f82303-o2']/form/div[2]/div/p/input"                                          // Share button
+            "//input[@name='yourphoneinfographic']",                                                        // Mobile Number input
+            "//div[@id='wpcf7-f82303-o2']/form/div[2]/p/span/span/span/label/span",                         // Terms checkbox
+            "//div[@id='wpcf7-f82303-o2']/form/div[3]/div/p/input"                                          // Share button
         );
         XPATH_MAP.put("https://indiana.wicresources.org/breastfeeding/", indianaBreastfeedingConfig);
 
@@ -263,18 +262,6 @@ public class SMSShareTest {
             "//*[@id='submit-btn-sms']"                                                                     // Share button
         );
         XPATH_MAP.put("https://newjersey.wicresources.org/", newJerseyConfig);
-
-        // New Jersey Test - Specific XPaths
-        XPathConfig newJerseyTestConfig = new XPathConfig(
-            "//div[@id='top']/div[2]/div/span",                                                              // Share icon
-            "//a[normalize-space()='SMS']",                                                                  // SMS tab
-            "//div[@id='wpcf7-f51622-o1']/form/div/p/label/span/div/div/div",                               // Country Code dropdown
-            "//div[@id='wpcf7-f51622-o1']/form/div/p/label/span/div/div/ul/li[101]/span",                   // India option
-            "//input[@name='yourphone']",                                                                   // Mobile Number input
-            "//input[@name='checkbox-403[]']/parent::label/span",                                           // Terms checkbox label
-            "//*[@id='submit-btn-sms']"                                                                      // Share button
-        );
-        XPATH_MAP.put("https://newjerseytest.wicresources.org/", newJerseyTestConfig);
         
         // Connecticut - Specific XPaths
         XPathConfig connecticutConfig = new XPathConfig(
@@ -865,6 +852,20 @@ public class SMSShareTest {
                 "//span[contains(text(),'SMS sent successfully')]",
                 "//p[contains(text(),'SMS sent successfully')]"
             };
+            // Known failure messages the share forms render in place of the success text.
+            // Without these, a rejected submit is indistinguishable from a slow one: both
+            // just burn the full 2 minutes and report "taking too long".
+            String[] failureMessages = {
+                "Monthly SMS limit reached",
+                "Failed to send SMS",
+                "An error occurred. Please try again",
+                "An unexpected issue occurred. Please try again",
+                "You must agree to receive SMS messages",
+                "Please enter a valid 10-digit phone number",
+                "Please check the reCAPTCHA checkbox"
+            };
+            String failureMessageText = null;
+
             while (!messageFound && (System.currentTimeMillis() - successWaitStartTime) < successWaitTimeoutMs) {
                 for (String messageXPath : successMessageXPaths) {
                     try {
@@ -886,6 +887,24 @@ public class SMSShareTest {
                     }
                 }
                 if (!messageFound) {
+                    for (String failure : failureMessages) {
+                        try {
+                            WebElement failureEl = driver.findElement(
+                                By.xpath("//*[contains(text(),'" + failure + "')]"));
+                            if (failureEl != null && failureEl.isDisplayed()) {
+                                failureMessageText = failureEl.getText().trim();
+                                System.out.println("Failure message found: " + failureMessageText);
+                                break;
+                            }
+                        } catch (Exception e) {
+                            continue;
+                        }
+                    }
+                }
+                if (!messageFound && failureMessageText != null) {
+                    break; // site rejected the submit - no point waiting out the timeout
+                }
+                if (!messageFound) {
                     Thread.sleep(500); // Small delay before checking again
                 }
             }
@@ -894,7 +913,9 @@ public class SMSShareTest {
             }
             if (!messageFound) {
                 long duration = System.currentTimeMillis() - startTime;
-                String errorMsg = "Success message not shown within 2 minutes - taking too long or submit did not complete";
+                String errorMsg = failureMessageText != null
+                    ? "Site rejected the submit: \"" + failureMessageText + "\""
+                    : "Success message not shown within 2 minutes - taking too long or submit did not complete";
                 System.err.println("\n==========================================");
                 System.err.println("❌ " + errorMsg);
                 System.err.println("TEST RESULT: FAIL for " + url);
@@ -1020,8 +1041,6 @@ public class SMSShareTest {
                 urlsToTest = new String[]{"https://indiana.wicresources.org/breastfeeding/"};
             } else if (args[0].equalsIgnoreCase("newjersey")) {
                 urlsToTest = new String[]{"https://newjersey.wicresources.org/"};
-            } else if (args[0].equalsIgnoreCase("newjerseytest")) {
-                urlsToTest = new String[]{"https://newjerseytest.wicresources.org/"};
             } else if (args[0].equalsIgnoreCase("connecticut")) {
                 urlsToTest = new String[]{"https://connecticut.wicresources.org/"};
             } else if (args[0].equalsIgnoreCase("livewell")) {
@@ -1035,7 +1054,7 @@ public class SMSShareTest {
             } else if (args[0].startsWith("http")) {
                 urlsToTest = new String[]{args[0]};
             } else {
-                System.out.println("Invalid argument. Use 'oklahoma', 'westvirginia', 'oregon', 'delaware', 'indiana', 'indiana-breastfeeding', 'infographic', 'kansas', 'nebraska', 'chickasaw', 'newjersey', 'newjerseytest', 'connecticut', 'livewell', or a full URL.");
+                System.out.println("Invalid argument. Use 'oklahoma', 'westvirginia', 'oregon', 'delaware', 'indiana', 'indiana-breastfeeding', 'infographic', 'kansas', 'nebraska', 'chickasaw', 'newjersey', 'connecticut', 'livewell', or a full URL.");
                 return;
             }
         } else {

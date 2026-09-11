@@ -2,22 +2,11 @@
 target/
 *.class
 
-# Maven local install used on this machine
-.tools/
-
-# Generated classpath
-cp.txt
-
 # Log files
-logs/
 *.log
-scheduler.log
-nohup.out
 
-# IDE / editor files
+# IDE files
 .idea/
-.vscode/
-.claude/
 *.iml
 .classpath
 .project
@@ -27,9 +16,6 @@ bin/
 # OS files
 .DS_Store
 Thumbs.db
-Desktop.ini
-__MACOSX/
-._*
 
 # Maven
 .mvn/
@@ -42,9 +28,15 @@ service-account-key.json
 credentials.json
 tokens/
 
+# Scripts with sensitive credentials (uncomment if you want to exclude from git)
+# run_with_email.sh
+
 # Node.js
 node_modules/
 package-lock.json
 .env
-.env.*
-!.env.example
+
+
+
+# Vendored Maven toolchain (downloaded, not source)
+.tools/

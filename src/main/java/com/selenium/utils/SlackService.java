@@ -127,10 +127,10 @@ public class SlackService {
         
         // Channel and username (optional)
         if (channel != null && !channel.isEmpty()) {
-            json.append("\"channel\":\"").append(channel).append("\",");
+            json.append("\"channel\":\"").append(escapeJson(channel)).append("\",");
         }
         if (username != null && !username.isEmpty()) {
-            json.append("\"username\":\"").append(username).append("\",");
+            json.append("\"username\":\"").append(escapeJson(username)).append("\",");
         }
         
         // Main message with blocks
